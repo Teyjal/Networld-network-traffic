@@ -42,8 +42,8 @@ async def get_forecast_status():
     return {
         "status": "ready",
         "model_info": artifact_info,
-        "world_model_version": "NetWorld-Unified-WorldModel" if wm.model.input_size == 51 else "NetWorld-MultiHead-WorldModel",
-        "active_input_dim": wm.model.input_size,
+        "world_model_version": "NetWorld-Unified-WorldModel" if (wm.model and getattr(wm.model, "input_size", 0) == 51) else "NetWorld-MultiHead-WorldModel",
+        "active_input_dim": getattr(wm.model, "input_size", 36),
         "unified_features_count": 51,
         "flow_features_count": 36,
         "packet_features_count": 15,
@@ -81,8 +81,8 @@ async def get_feature_schema():
             "count": NUM_UNIFIED_FEATURES,
             "names": UNIFIED_FEATURE_NAMES,
         },
-        "active_model_input_size": wm.model.input_size,
-        "active_model_checkpoint": wm.loaded_checkpoint,
+        "active_model_input_size": getattr(wm.model, "input_size", 36),
+        "active_model_checkpoint": getattr(wm, "loaded_checkpoint", "models/networld_combined_temporal_lstm_best.npz"),
     }
 
 

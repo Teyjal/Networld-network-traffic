@@ -75,7 +75,7 @@ class UnifiedNetworkScaler:
 
         # Load original 36-feature flow scaler
         if not os.path.exists(flow_scaler_path):
-            backend_dir = os.path.join(workspace_root, "backend")
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             cand1 = os.path.join(workspace_root, flow_scaler_path)
             cand2 = os.path.join(backend_dir, flow_scaler_path)
             if os.path.exists(cand1):

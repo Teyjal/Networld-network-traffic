@@ -20,10 +20,10 @@ try:
 except ImportError:
     torch = None
 
-# Ensure workspace root and backend dir are in sys.path
+# Ensure backend dir and workspace root are in sys.path
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 WORKSPACE_ROOT = os.path.dirname(BACKEND_DIR)
-for p in [WORKSPACE_ROOT, BACKEND_DIR]:
+for p in [BACKEND_DIR, WORKSPACE_ROOT]:
     if p not in sys.path:
         sys.path.insert(0, p)
 BASE_DIR = WORKSPACE_ROOT
@@ -41,8 +41,18 @@ from ml.feature_schema import (
 )
 from ml.packet_extractor import PacketFeatureExtractor
 from ml.unified_scaler import get_unified_scaler, UnifiedNetworkScaler
-from ml.world_model_multihead import NetWorldMultiHeadWorldModel
-from ml.rollout import AutoregressiveRolloutEngine
+
+if torch is not None:
+    try:
+        from ml.world_model_multihead import NetWorldMultiHeadWorldModel
+        from ml.rollout import AutoregressiveRolloutEngine
+    except ImportError:
+        NetWorldMultiHeadWorldModel = None
+        AutoregressiveRolloutEngine = None
+else:
+    NetWorldMultiHeadWorldModel = None
+    AutoregressiveRolloutEngine = None
+
 from app.services.mitre_mapper import MitreMapperService
 from app.services.shap_service import ShapExplainabilityService
 
@@ -71,14 +81,18 @@ class WorldModelService:
         if self._initialized:
             return
 
+        self.scaler = get_unified_scaler()
         if torch is not None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self._load_artifacts()
-            self.rollout_engine = AutoregressiveRolloutEngine(
-                model=self.model,
-                scaler=self.scaler,
-                device=self.device,
-            )
+            if self.model is not None and AutoregressiveRolloutEngine is not None:
+                self.rollout_engine = AutoregressiveRolloutEngine(
+                    model=self.model,
+                    scaler=self.scaler,
+                    device=self.device,
+                )
+            else:
+                self.rollout_engine = None
         else:
             self.device = "cpu"
             self.model = None
@@ -90,9 +104,12 @@ class WorldModelService:
     def _resolve_path(self, rel_path: str) -> str:
         if os.path.isabs(rel_path):
             return rel_path
-        cand1 = os.path.join(BASE_DIR, rel_path)
+        cand1 = os.path.join(WORKSPACE_ROOT, rel_path)
         if os.path.exists(cand1):
             return cand1
+        cand2 = os.path.join(BACKEND_DIR, rel_path)
+        if os.path.exists(cand2):
+            return cand2
         return os.path.abspath(rel_path)
 
     def _load_artifacts(self):
@@ -188,7 +205,8 @@ class WorldModelService:
             raw_packet, is_pkt_avail = PacketFeatureExtractor.extract_from_df(df.tail(100))
 
 
-        if self.model.input_size == NUM_UNIFIED_FEATURES:
+        model_dim = getattr(self.model, "input_size", NUM_UNIFIED_FEATURES if is_pkt_avail else NUM_FEATURES)
+        if model_dim == NUM_UNIFIED_FEATURES:
             scaled_array = self.scaler.normalize_unified(raw_flow, raw_packet)
         else:
             scaled_array = self.scaler.normalize_flow(raw_flow)
@@ -213,7 +231,7 @@ class WorldModelService:
             "flow_feature_count": NUM_FEATURES,
             "packet_feature_count": NUM_PACKET_FEATURES if is_pkt_avail else 0,
             "total_feature_count": NUM_UNIFIED_FEATURES if is_pkt_avail else NUM_FEATURES,
-            "active_model_dim": self.model.input_size,
+            "active_model_dim": getattr(self.model, "input_size", NUM_UNIFIED_FEATURES if is_pkt_avail else NUM_FEATURES),
             "source": "pcap_packet_telemetry" if is_pkt_avail else "flow_telemetry_neutral_baseline",
             "packet_features": sample_packet_stats,
         }
@@ -233,8 +251,25 @@ class WorldModelService:
         horizon = max(1, min(int(horizon), 20))
         seq_window, packet_meta = self.prepare_sequence_window(df, packet_data=packet_data)
 
-        # Execute K-step Autoregressive Rollout
-        trajectory = self.rollout_engine.rollout(seq_window, horizon=horizon)
+        # Execute K-step Autoregressive Rollout (or pure NumPy fallback if torch unavailable)
+        if self.rollout_engine is not None:
+            trajectory = self.rollout_engine.rollout(seq_window, horizon=horizon)
+        else:
+            from app.services.inference import InferenceService
+            infer_service = InferenceService()
+            kstep_result = infer_service.run_temporal_kstep_forecast(df, horizon=horizon, filename=filename)
+            trajectory = []
+            for item in kstep_result["timeline"]:
+                step_idx = item["step"]
+                trajectory.append({
+                    "step": step_idx,
+                    "risk_probability": item["risk"],
+                    "risk_level": item["risk_category"],
+                    "status": item["status"],
+                    "description": item["description"],
+                    "horizon_label": f"+{step_idx}" if step_idx > 0 else "NOW",
+                    "key_features": {}
+                })
 
         current_step = trajectory[0]
         peak_risk = max(item["risk_probability"] for item in trajectory)
@@ -270,7 +305,7 @@ class WorldModelService:
             "success": True,
             "filename": filename,
             "horizon": horizon,
-            "model_version": "NetWorld-Unified-WorldModel" if self.model.input_size == NUM_UNIFIED_FEATURES else "NetWorld-MultiHead-WorldModel",
+            "model_version": "NetWorld-Unified-WorldModel" if (self.model and getattr(self.model, "input_size", 0) == NUM_UNIFIED_FEATURES) else "NetWorld-MultiHead-WorldModel",
             "device": str(self.device),
             "current_risk": current_step["risk_probability"],
             "current_risk_category": current_step["risk_level"],
@@ -390,14 +425,100 @@ class WorldModelService:
         elif action_clean in ("block ip", "block_ip"):
             action_clean = "block_ip"
 
-        # Run counterfactual simulation via rollout engine
-        sim_result = self.rollout_engine.simulate_defense(
-            initial_sequence=seq_window,
-            action=action_clean,
-            target_value=target_value,
-            rate_factor=rate_factor,
-            horizon=horizon,
-        )
+        # Run counterfactual simulation via rollout engine (or pure NumPy fallback)
+        if self.rollout_engine is not None:
+            sim_result = self.rollout_engine.simulate_defense(
+                initial_sequence=seq_window,
+                action=action_clean,
+                target_value=target_value,
+                rate_factor=rate_factor,
+                horizon=horizon,
+            )
+        else:
+            from app.services.inference import InferenceService
+            infer_service = InferenceService()
+            base_res = infer_service.run_temporal_kstep_forecast(df, horizon=horizon, filename=filename)
+            baseline_trajectory = []
+            for item in base_res["timeline"]:
+                s = item["step"]
+                baseline_trajectory.append({
+                    "step": s,
+                    "risk_probability": item["risk"],
+                    "risk_level": item["risk_category"],
+                    "status": item["status"],
+                    "description": item["description"],
+                    "horizon_label": f"+{s}" if s > 0 else "NOW",
+                })
+
+            df_cf = df.copy()
+            spec = dict(DEFENSE_PERTURBATION_SPEC.get(action_clean, {}))
+            affected_feature_names = spec.get("affected_features", [])
+            for feat_name in affected_feature_names:
+                if feat_name in df_cf.columns:
+                    if spec.get("operation") == "zero":
+                        df_cf[feat_name] = 0.0
+                    elif spec.get("operation") == "scale":
+                        factor = spec.get("scale_factor", 0.1)
+                        if rate_factor is not None:
+                            factor = max(0.01, min(float(rate_factor), 0.99))
+                        df_cf[feat_name] = df_cf[feat_name] * factor
+
+            cf_res = infer_service.run_temporal_kstep_forecast(df_cf, horizon=horizon, filename=filename)
+            cf_trajectory = []
+            for item in cf_res["timeline"]:
+                s = item["step"]
+                cf_trajectory.append({
+                    "step": s,
+                    "risk_probability": item["risk"],
+                    "risk_level": item["risk_category"],
+                    "status": item["status"],
+                    "description": item["description"],
+                    "horizon_label": f"+{s}" if s > 0 else "NOW",
+                })
+
+            base_risks = [item["risk_probability"] for item in baseline_trajectory]
+            cf_risks = [item["risk_probability"] for item in cf_trajectory]
+            peak_base = max(base_risks) if base_risks else 0.0
+            peak_cf = max(cf_risks) if cf_risks else 0.0
+            risk_delta = round(peak_cf - peak_base, 4)
+
+            step_comparisons = []
+            for i in range(len(baseline_trajectory)):
+                b_item = baseline_trajectory[i]
+                c_item = cf_trajectory[i] if i < len(cf_trajectory) else b_item
+                s_delta = round(c_item["risk_probability"] - b_item["risk_probability"], 4)
+                step_comparisons.append({
+                    "step": b_item["step"],
+                    "horizon_label": b_item["horizon_label"],
+                    "baseline_risk": b_item["risk_probability"],
+                    "baseline_risk_percent": round(b_item["risk_probability"] * 100, 1),
+                    "baseline_risk_level": b_item["risk_level"],
+                    "whatif_risk": c_item["risk_probability"],
+                    "whatif_risk_percent": round(c_item["risk_probability"] * 100, 1),
+                    "whatif_risk_level": c_item["risk_level"],
+                    "risk_delta": s_delta,
+                    "risk_delta_percent": round(s_delta * 100, 1),
+                    "risk_reduced": s_delta < 0,
+                })
+
+            friendly_action_name = spec.get("action_name", action.replace("_", " ").title())
+            mitigation_pct = round(abs(min(0.0, risk_delta)) / (peak_base if peak_base > 0 else 1.0) * 100, 1)
+
+            sim_result = {
+                "action": action_clean,
+                "selected_action": friendly_action_name,
+                "description": spec.get("description", f"Counterfactual evaluation of {friendly_action_name}"),
+                "affected_features": affected_feature_names,
+                "baseline_trajectory": baseline_trajectory,
+                "counterfactual_trajectory": cf_trajectory,
+                "whatif_trajectory": cf_trajectory,
+                "step_comparisons": step_comparisons,
+                "baseline_peak_risk": round(peak_base, 4),
+                "counterfactual_peak_risk": round(peak_cf, 4),
+                "risk_delta": risk_delta,
+                "mitigation_percentage": mitigation_pct,
+                "risk_reduced": risk_delta < 0,
+            }
 
         # Construct backward-compatible timelines
         base_timeline = [
@@ -437,7 +558,7 @@ class WorldModelService:
             "target_value": target_value,
             "simulation": True,
             "simulation_type": "world_model_what_if_rollout",
-            "model_version": "NetWorld-Unified-WorldModel" if self.model.input_size == NUM_UNIFIED_FEATURES else "NetWorld-MultiHead-WorldModel",
+            "model_version": "NetWorld-Unified-WorldModel" if (self.model and getattr(self.model, "input_size", 0) == NUM_UNIFIED_FEATURES) else "NetWorld-MultiHead-WorldModel",
             "description": sim_result["description"],
             "affected_features": sim_result["affected_features"],
             "affected_records": len(df),

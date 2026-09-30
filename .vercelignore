@@ -1,0 +1,49 @@
+# Exclude large raw and processed datasets (7.5+ GB offline datasets)
+data/raw/
+data/processed/
+*.csv
+!data/sample_traffic.csv
+*.npy
+
+# Exclude training scripts, offline experiments, and dev checkpoints
+ml/train_*.py
+ml/create_*.py
+ml/prepare_*.py
+ml/evaluate_*.py
+ml/test_*.py
+scratch/
+models/incremental_feb14/
+models/incremental_feb16/
+models/networld_temporal_lstm_best.pt
+models/networld_lstm_best.pt
+
+# Exclude local virtual environments & python caches
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+backend/venv/
+env/
+.venv/
+
+# Exclude offline tests
+backend/test_*.py
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Exclude node & frontend build intermediate caches
+node_modules/
+.output/
+.tanstack/
+.wrangler/
+.lovable/
+dist/
+dist-ssr/
+*.log
+
+# Exclude Git & OS files
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store

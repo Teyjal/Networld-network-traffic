@@ -16,8 +16,12 @@ Model context:
 
 import numpy as np
 import pandas as pd
-import torch
 from typing import Dict, Any, List
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 from app.services.preprocessing import REQUIRED_MODEL_FEATURES
 from app.services.mitre_mapper import MitreMapperService
@@ -99,13 +103,18 @@ class InferenceService:
 
         sequences_np = np.array(sequences, dtype=np.float32)  # Shape: (num_sequences, 20, 36)
 
-        # 5. Convert to PyTorch Tensor & run model inference
-        tensor_input = torch.from_numpy(sequences_np).to(device)
-
-        model.eval()
-        with torch.no_grad():
-            logits = model(tensor_input)
-            probs = torch.sigmoid(logits).cpu().numpy().flatten()
+        # 5. Run model inference (PyTorch or NumPy engine)
+        if torch is not None and hasattr(model, "parameters"):
+            tensor_input = torch.from_numpy(sequences_np).to(device)
+            model.eval()
+            with torch.no_grad():
+                logits = model(tensor_input)
+                probs = torch.sigmoid(logits).cpu().numpy().flatten()
+        else:
+            logits = model(sequences_np)
+            if hasattr(logits, "cpu"):
+                logits = logits.cpu().numpy()
+            probs = (1.0 / (1.0 + np.exp(-np.clip(logits, -500, 500)))).flatten()
 
         # 6. Format metrics and timeline
         probabilities = [round(float(p), 4) for p in probs]

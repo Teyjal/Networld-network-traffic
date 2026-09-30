@@ -13,8 +13,12 @@ import sys
 import pickle
 import numpy as np
 import pandas as pd
-import torch
 from typing import Dict, Any, List, Optional
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 # Ensure workspace root and backend dir are in sys.path
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -67,13 +71,18 @@ class WorldModelService:
         if self._initialized:
             return
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self._load_artifacts()
-        self.rollout_engine = AutoregressiveRolloutEngine(
-            model=self.model,
-            scaler=self.scaler,
-            device=self.device,
-        )
+        if torch is not None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self._load_artifacts()
+            self.rollout_engine = AutoregressiveRolloutEngine(
+                model=self.model,
+                scaler=self.scaler,
+                device=self.device,
+            )
+        else:
+            self.device = "cpu"
+            self.model = None
+            self.rollout_engine = None
         self.mitre_mapper = MitreMapperService()
         self.shap_service = ShapExplainabilityService()
         self._initialized = True

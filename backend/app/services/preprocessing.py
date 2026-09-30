@@ -13,7 +13,11 @@ import os
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import pandas as pd
-import torch
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 from app.model.loader import get_model_and_scaler
 
@@ -334,11 +338,18 @@ class PreprocessingService:
                     seq_target_indices.append(row_idx)
 
                 if sequences:
-                    tensor_input = torch.from_numpy(np.array(sequences, dtype=np.float32)).to(device)
-                    model.eval()
-                    with torch.no_grad():
-                        logits = model(tensor_input)
-                        pred_probs = torch.sigmoid(logits).cpu().numpy().flatten()
+                    seqs_arr = np.array(sequences, dtype=np.float32)
+                    if torch is not None and hasattr(model, "parameters"):
+                        tensor_input = torch.from_numpy(seqs_arr).to(device)
+                        model.eval()
+                        with torch.no_grad():
+                            logits = model(tensor_input)
+                            pred_probs = torch.sigmoid(logits).cpu().numpy().flatten()
+                    else:
+                        logits = model(seqs_arr)
+                        if hasattr(logits, "cpu"):
+                            logits = logits.cpu().numpy()
+                        pred_probs = (1.0 / (1.0 + np.exp(-np.clip(logits, -500, 500)))).flatten()
 
                     for target_idx, prob_val in zip(seq_target_indices, pred_probs):
                         probs_map[target_idx] = float(prob_val)

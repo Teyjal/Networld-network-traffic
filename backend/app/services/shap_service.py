@@ -14,8 +14,12 @@ Requirements Satisfied:
 
 import numpy as np
 import pandas as pd
-import torch
 from typing import Dict, Any, List, Optional
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 try:
     import shap
@@ -92,13 +96,20 @@ class ShapExplainabilityService:
             raw_seq = np.vstack([padded_raw, raw_array])
             selected_window_index = 0
 
-        # 4. Compute model prediction
-        tensor_x = torch.from_numpy(seq_scaled[np.newaxis, ...]).to(device)
-
-        model.eval()
-        with torch.no_grad():
-            logits = model(tensor_x)
-            prob = float(torch.sigmoid(logits[0, 0]).item())
+        # 4. Compute model prediction (PyTorch or NumPy engine)
+        if torch is not None and hasattr(model, "parameters"):
+            tensor_x = torch.from_numpy(seq_scaled[np.newaxis, ...]).to(device)
+            model.eval()
+            with torch.no_grad():
+                logits = model(tensor_x)
+                prob = float(torch.sigmoid(logits[0, 0]).item())
+                prob_rounded = round(prob, 4)
+        else:
+            logits = model(seq_scaled[np.newaxis, ...])
+            if hasattr(logits, "cpu"):
+                logits = logits.cpu().numpy()
+            raw_logit = float(np.asarray(logits).flatten()[0])
+            prob = float(1.0 / (1.0 + np.exp(-np.clip(raw_logit, -500, 500))))
             prob_rounded = round(prob, 4)
 
         # 5. Compute real SHAP attributions
@@ -106,14 +117,12 @@ class ShapExplainabilityService:
         shap_matrix: Optional[np.ndarray] = None
         base_value: float = 0.5
 
-        if HAS_SHAP:
+        if HAS_SHAP and torch is not None and hasattr(model, "parameters"):
             try:
-                # Background baseline of 10 samples (zeros in standardized space = feature means)
                 bg_data = torch.zeros(5, self.SEQUENCE_LENGTH, self.NUM_FEATURES, device=device)
                 explainer = shap.GradientExplainer(model, bg_data)
                 raw_shap = explainer.shap_values(tensor_x)
                 shap_arr = np.array(raw_shap)
-                # Reshape to (20, 36)
                 shap_matrix = np.squeeze(shap_arr)
                 if hasattr(explainer, "expected_value") and explainer.expected_value is not None:
                     exp_val = explainer.expected_value
@@ -125,29 +134,50 @@ class ShapExplainabilityService:
             except Exception:
                 shap_matrix = None
 
-        # Fallback to Path-Integrated Gradients if SHAP explainer encounters device/version constraints
+        # Fallback to Integrated Gradients (with PyTorch) or Perturbation-Shapley (with NumPy)
         if shap_matrix is None or shap_matrix.shape != (self.SEQUENCE_LENGTH, self.NUM_FEATURES):
-            method_used = "IntegratedGradients (Path-Shapley)"
-            baseline = np.zeros_like(seq_scaled)
-            steps = 20
-            grads_list = []
+            if torch is not None and hasattr(model, "parameters"):
+                method_used = "IntegratedGradients (Path-Shapley)"
+                baseline = np.zeros_like(seq_scaled)
+                steps = 20
+                grads_list = []
 
-            for alpha in np.linspace(0.0, 1.0, steps):
-                interpolated = baseline + alpha * (seq_scaled - baseline)
-                interp_tensor = torch.from_numpy(interpolated[np.newaxis, ...]).to(device)
-                interp_tensor.requires_grad = True
+                for alpha in np.linspace(0.0, 1.0, steps):
+                    interpolated = baseline + alpha * (seq_scaled - baseline)
+                    interp_tensor = torch.from_numpy(interpolated[np.newaxis, ...]).to(device)
+                    interp_tensor.requires_grad = True
 
-                model.zero_grad()
-                out = model(interp_tensor)[0, 0]
-                out.backward()
+                    model.zero_grad()
+                    out = model(interp_tensor)[0, 0]
+                    out.backward()
 
-                g = interp_tensor.grad.detach().cpu().numpy()[0]
-                grads_list.append(g)
+                    g = interp_tensor.grad.detach().cpu().numpy()[0]
+                    grads_list.append(g)
 
-            avg_grads = np.mean(grads_list, axis=0)
-            diff = seq_scaled - baseline
-            shap_matrix = diff * avg_grads
-            base_value = 0.5
+                avg_grads = np.mean(grads_list, axis=0)
+                diff = seq_scaled - baseline
+                shap_matrix = diff * avg_grads
+                base_value = 0.5
+            else:
+                method_used = "Perturbation-Shapley (Finite Difference)"
+                baseline = np.zeros_like(seq_scaled)
+                diff = seq_scaled - baseline
+                base_out = float(np.asarray(model(baseline[np.newaxis, ...])).flatten()[0])
+                
+                # Attribute impact by masking each feature
+                feature_sensitivities = np.zeros(self.NUM_FEATURES, dtype=np.float32)
+                cur_logit = float(np.asarray(logits).flatten()[0])
+                for j in range(self.NUM_FEATURES):
+                    masked = seq_scaled.copy()
+                    masked[:, j] = baseline[:, j]
+                    m_logit = float(np.asarray(model(masked[np.newaxis, ...])).flatten()[0])
+                    feature_sensitivities[j] = cur_logit - m_logit
+
+                step_weights = np.abs(seq_scaled)
+                col_sum = np.sum(step_weights, axis=0, keepdims=True)
+                col_sum[col_sum == 0] = 1.0
+                shap_matrix = (step_weights / col_sum) * feature_sensitivities[np.newaxis, :]
+                base_value = round(float(1.0 / (1.0 + np.exp(-base_out))), 4)
 
         # 6. Aggregate SHAP values across 20 time steps for feature-level explanation
         feature_shap_vals = np.sum(shap_matrix, axis=0)  # Shape: (36,)

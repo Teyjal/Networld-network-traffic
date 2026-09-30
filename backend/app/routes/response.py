@@ -15,8 +15,7 @@ from app.services.inference import InferenceService
 
 router = APIRouter(tags=["Response & Verification"])
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+from app.services.storage import UPLOAD_DIR
 
 
 class OperatorApprovalPayload(BaseModel):
@@ -99,7 +98,7 @@ async def recommend_responses(baseline_filename: Optional[str] = Query(None)):
     target_path = os.path.join(UPLOAD_DIR, baseline_filename)
     if not os.path.exists(target_path):
         found = False
-        for f in os.listdir(UPLOAD_DIR):
+        for f in (os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []):
             if f == baseline_filename or f.endswith(f"_{baseline_filename}"):
                 target_path = os.path.join(UPLOAD_DIR, f)
                 found = True
@@ -324,7 +323,7 @@ async def apply_response(payload: OperatorApprovalPayload):
     target_path = os.path.join(UPLOAD_DIR, baseline_filename)
     if not os.path.exists(target_path):
         found = False
-        for f in os.listdir(UPLOAD_DIR):
+        for f in (os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []):
             if f == baseline_filename or f.endswith(f"_{baseline_filename}"):
                 target_path = os.path.join(UPLOAD_DIR, f)
                 baseline_filename = f

@@ -16,9 +16,7 @@ from app.services.session_manager import session_manager
 
 router = APIRouter(tags=["What-If Simulation"])
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from app.services.storage import UPLOAD_DIR, ensure_upload_dir
 
 
 class WhatIfRequestJSON(BaseModel):
@@ -97,6 +95,7 @@ async def simulate_defensive_action(
                 detail="Invalid file format. Input must be a CSV file (.csv)."
             )
         file_id = str(uuid.uuid4())
+        ensure_upload_dir()
         target_path = os.path.join(UPLOAD_DIR, f"whatif_{file_id}_{target_filename}")
         try:
             with open(target_path, "wb") as buffer:
@@ -116,7 +115,7 @@ async def simulate_defensive_action(
         candidate_path = os.path.join(UPLOAD_DIR, target_filename)
         if not os.path.exists(candidate_path):
             found = False
-            for f in os.listdir(UPLOAD_DIR):
+            for f in (os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []):
                 if f.endswith(target_filename):
                     candidate_path = os.path.join(UPLOAD_DIR, f)
                     found = True

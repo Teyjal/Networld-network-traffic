@@ -14,10 +14,8 @@ from app.services.enforcement_adapter import enforcement_adapter
 
 router = APIRouter(tags=["Traffic"])
 
-# Absolute path for temporary uploads directory within backend
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Writable temporary directory reference from central storage service
+from app.services.storage import UPLOAD_DIR, ensure_upload_dir
 
 
 @router.get("/")
@@ -84,6 +82,7 @@ async def upload_traffic_file(file: UploadFile = File(...)):
     # 2. Save uploaded file temporarily
     file_id = str(uuid.uuid4())
     temp_filename = f"{file_id}_{original_filename}"
+    ensure_upload_dir()
     file_path = os.path.join(UPLOAD_DIR, temp_filename)
 
     try:

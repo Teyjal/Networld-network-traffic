@@ -12,8 +12,7 @@ import pandas as pd
 from app.services.inference import InferenceService
 from app.services.preprocessing import REQUIRED_MODEL_FEATURES
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+from app.services.storage import UPLOAD_DIR
 
 
 class VerificationService:

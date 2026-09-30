@@ -17,10 +17,8 @@ from app.model.loader import ModelLoader
 
 router = APIRouter(tags=["Forecast"])
 
-# Upload directory reference
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Upload directory reference from central storage service
+from app.services.storage import UPLOAD_DIR, ensure_upload_dir
 
 # In-memory forecast store for GET /forecast/{id}
 FORECAST_CACHE = {}
@@ -152,6 +150,7 @@ async def create_forecast(
                 detail="Invalid file format. Forecast input must be a CSV file (.csv)."
             )
         file_id = str(uuid.uuid4())
+        ensure_upload_dir()
         target_path = os.path.join(UPLOAD_DIR, f"forecast_{file_id}_{target_filename}")
         try:
             with open(target_path, "wb") as buffer:
@@ -169,7 +168,7 @@ async def create_forecast(
         candidate_path = os.path.join(UPLOAD_DIR, target_filename)
         if not os.path.exists(candidate_path):
             found = False
-            for f in os.listdir(UPLOAD_DIR):
+            for f in (os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []):
                 if f.endswith(target_filename):
                     candidate_path = os.path.join(UPLOAD_DIR, f)
                     found = True
@@ -308,6 +307,7 @@ async def forecast_what_if(
                 detail="Invalid file format. Input must be a CSV file (.csv)."
             )
         file_id = str(uuid.uuid4())
+        ensure_upload_dir()
         target_path = os.path.join(UPLOAD_DIR, f"whatif_{file_id}_{target_filename}")
         try:
             with open(target_path, "wb") as buffer:
@@ -323,7 +323,7 @@ async def forecast_what_if(
         target_filename = os.path.basename(requested_name)
         candidate_path = os.path.join(UPLOAD_DIR, target_filename)
         if not os.path.exists(candidate_path):
-            for f in os.listdir(UPLOAD_DIR):
+            for f in (os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []):
                 if f.endswith(target_filename):
                     candidate_path = os.path.join(UPLOAD_DIR, f)
                     break
@@ -337,7 +337,7 @@ async def forecast_what_if(
         target_filename = active_session["uploaded_filename"]
         target_path = os.path.join(UPLOAD_DIR, target_filename)
     else:
-        existing_files = [f for f in os.listdir(UPLOAD_DIR) if f.endswith(".csv")]
+        existing_files = [f for f in os.listdir(UPLOAD_DIR) if f.endswith(".csv")] if os.path.exists(UPLOAD_DIR) else []
         if existing_files:
             latest_file = max(existing_files, key=lambda f: os.path.getmtime(os.path.join(UPLOAD_DIR, f)))
             target_path = os.path.join(UPLOAD_DIR, latest_file)

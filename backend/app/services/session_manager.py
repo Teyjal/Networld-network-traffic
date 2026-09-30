@@ -15,9 +15,7 @@ from app.services.inference import InferenceService
 from app.services.preprocessing import PreprocessingService, REQUIRED_MODEL_FEATURES
 from app.services.shap_service import ShapExplainabilityService
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from app.services.storage import UPLOAD_DIR, ensure_upload_dir
 
 
 class SessionManager:
@@ -363,6 +361,7 @@ class SessionManager:
         })
 
         # Save post-response CSV to disk
+        ensure_upload_dir()
         post_filename = f"post_response_{session_id}.csv"
         post_path = os.path.join(UPLOAD_DIR, post_filename)
         df_post.to_csv(post_path, index=False)

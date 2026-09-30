@@ -17,10 +17,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 import pandas as pd
 
-# Upload directory reference
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Upload directory reference from central storage service
+from app.services.storage import UPLOAD_DIR, ensure_upload_dir
 
 
 class BaseEnforcementAdapter(ABC):
@@ -384,6 +382,7 @@ class SafeLabEnforcementAdapter(BaseEnforcementAdapter):
                     df_post[col] = df_post[col] * 0.5
 
         # Save NEW post-response observed dataset
+        ensure_upload_dir()
         new_filename = f"lab_post_response_{response_id}.csv"
         out_path = os.path.join(UPLOAD_DIR, new_filename)
         df_post.to_csv(out_path, index=False)

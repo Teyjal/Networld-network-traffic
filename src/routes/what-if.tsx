@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import WhatIfSimulator from "@/pages/WhatIfSimulator";
+export const Route = createFileRoute("/what-if")({head:()=>({meta:[{title:"What-If Defender Simulator — NETWORLD"},{name:"description",content:"Test hypothetical defensive actions against the predicted cyber attack trajectory."},{property:"og:title",content:"What-If Defender Simulator — NETWORLD"},{property:"og:description",content:"Test hypothetical defensive actions against the predicted cyber attack trajectory."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:WhatIfSimulator});

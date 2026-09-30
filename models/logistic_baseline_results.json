@@ -1,0 +1,41 @@
+{
+  "model_name": "Logistic Regression Baseline",
+  "representation": "720 flattened scaled features (20 sequential flows x 36 features)",
+  "hyperparameters": {
+    "solver": "lbfgs",
+    "max_iter": 100,
+    "class_weight": "None",
+    "random_state": 42
+  },
+  "dataset_info": {
+    "training_dataset": "CIC-IDS2018 (Combined Temporal)",
+    "evaluation_split": "Temporal Holdout Test Split (20%)",
+    "total_test_samples": 311562,
+    "sequence_length": 20,
+    "feature_count": 36,
+    "flattened_features": 720
+  },
+  "metrics": {
+    "accuracy": 0.6784,
+    "precision": 0.6435,
+    "recall": 0.4438,
+    "f1": 0.5253,
+    "false_positive_rate": 0.1646,
+    "confusion_matrix": {
+      "tn": 155923,
+      "fp": 30714,
+      "fn": 69480,
+      "tp": 55445,
+      "matrix": [
+        [
+          155923,
+          30714
+        ],
+        [
+          69480,
+          55445
+        ]
+      ]
+    }
+  }
+}

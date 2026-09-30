@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import DigitalTwin from "@/pages/DigitalTwin";
+export const Route = createFileRoute("/digital-twin")({head:()=>({meta:[{title:"Network Digital Twin — NETWORLD"},{name:"description",content:"Explore an interactive network graph and predicted attack paths across assets."},{property:"og:title",content:"Network Digital Twin — NETWORLD"},{property:"og:description",content:"Explore an interactive network graph and predicted attack paths across assets."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:DigitalTwin});

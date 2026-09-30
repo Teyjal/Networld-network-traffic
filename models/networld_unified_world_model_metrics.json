@@ -1,0 +1,21 @@
+{
+  "model_architecture": "NetWorldMultiHeadWorldModel",
+  "input_features": 51,
+  "flow_features": 36,
+  "packet_features": 15,
+  "test_accuracy": 0.6887,
+  "test_f1": 0.5339,
+  "test_precision": 0.6903,
+  "test_recall": 0.4353,
+  "test_roc_auc": 0.7367,
+  "unified_state_mae": 0.3141,
+  "flow_state_mae": 0.3666,
+  "packet_state_mae": 0.1882,
+  "rollout_mae_by_horizon": {
+    "horizon_1": 0.3126,
+    "horizon_3": 0.3102,
+    "horizon_5": 0.3192
+  },
+  "device": "cpu",
+  "checkpoint": "models/networld_unified_world_model_best.pt"
+}

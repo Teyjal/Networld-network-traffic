@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import Explainability from "@/pages/Explainability";
+export const Route = createFileRoute("/explainability")({head:()=>({meta:[{title:"Model Explainability — NETWORLD"},{name:"description",content:"Understand the feature evidence and timeline behind each network attack forecast."},{property:"og:title",content:"Model Explainability — NETWORLD"},{property:"og:description",content:"Understand the feature evidence and timeline behind each network attack forecast."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:Explainability});

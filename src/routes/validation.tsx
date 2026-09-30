@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import Validation from "@/pages/Validation";
+export const Route = createFileRoute("/validation")({head:()=>({meta:[{title:"Model Validation — NETWORLD"},{name:"description",content:"Compare empirical NETWORLD temporal world model performance and benchmark metrics."},{property:"og:title",content:"Model Validation — NETWORLD"},{property:"og:description",content:"Compare empirical NETWORLD temporal world model performance and benchmark metrics."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:Validation});

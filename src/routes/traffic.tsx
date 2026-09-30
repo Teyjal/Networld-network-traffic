@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import TrafficAnalysis from "@/pages/TrafficAnalysis";
+export const Route = createFileRoute("/traffic")({head:()=>({meta:[{title:"Traffic Analysis — NETWORLD"},{name:"description",content:"Upload CSV or PCAP network traffic and inspect normalized flow-level telemetry."},{property:"og:title",content:"Traffic Analysis — NETWORLD"},{property:"og:description",content:"Upload CSV or PCAP network traffic and inspect normalized flow-level telemetry."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:TrafficAnalysis});

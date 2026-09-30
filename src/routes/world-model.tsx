@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import WorldModel from "@/pages/WorldModel";
+export const Route = createFileRoute("/world-model")({head:()=>({meta:[{title:"World Model — NETWORLD"},{name:"description",content:"Explore the LSTM temporal world model and its forward network-state simulation."},{property:"og:title",content:"World Model — NETWORLD"},{property:"og:description",content:"Explore the LSTM temporal world model and its forward network-state simulation."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:WorldModel});

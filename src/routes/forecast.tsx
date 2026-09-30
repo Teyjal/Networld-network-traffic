@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import AttackForecast from "@/pages/AttackForecast";
+export const Route = createFileRoute("/forecast")({head:()=>({meta:[{title:"Attack Forecast — NETWORLD"},{name:"description",content:"Inspect multi-step infiltration risk and MITRE ATT&CK stage forecasts."},{property:"og:title",content:"Attack Forecast — NETWORLD"},{property:"og:description",content:"Inspect multi-step infiltration risk and MITRE ATT&CK stage forecasts."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:AttackForecast});

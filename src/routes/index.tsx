@@ -1,0 +1,3 @@
+import { createFileRoute } from "@tanstack/react-router";
+import CommandCenter from "@/pages/CommandCenter";
+export const Route = createFileRoute("/")({head:()=>({meta:[{title:"NETWORLD Command Center"},{name:"description",content:"Forecast cyber attacks, explain their causes, and test defensive actions before compromise."},{property:"og:title",content:"NETWORLD Command Center"},{property:"og:description",content:"Forecast cyber attacks, explain their causes, and test defensive actions before compromise."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary_large_image"}]}),component:CommandCenter});

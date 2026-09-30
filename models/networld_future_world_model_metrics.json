@@ -1,0 +1,43 @@
+{
+  "model_version": "NetWorld-MultiHead-WorldModel-v1",
+  "description": "Multi-Head LSTM Network State Transition & Infiltration Risk Model",
+  "checkpoint_path": "models/networld_future_world_model_best.pt",
+  "scaler_path": "models/networld_combined_temporal_scaler.pkl",
+  "test_metrics": {
+    "accuracy": 0.6928,
+    "precision": 0.6802827965435978,
+    "recall": 0.43408521303258146,
+    "f1": 0.5299877600979193,
+    "roc_auc": 0.7433754050267098,
+    "state_mae_step1": 0.368502140045166
+  },
+  "rollout_horizon_metrics": {
+    "K_1_mean_state_mae": 0.3989060126245022,
+    "K_3_mean_state_mae": 0.3978868037164211,
+    "K_5_mean_state_mae": 0.399947293639183
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.4245987959480286,
+      "train_state_loss": 0.22728873138427735,
+      "train_risk_loss": 0.1973100640964508,
+      "val_loss": 0.39283734865188596,
+      "val_state_mae": 0.45234185457229614,
+      "val_acc": 0.95185,
+      "val_f1": 0.41100917431192663,
+      "val_auc": 0.9366941176560513
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.41906777145385743,
+      "train_state_loss": 0.22436064177513124,
+      "train_risk_loss": 0.19470712974071502,
+      "val_loss": 0.39633013916015625,
+      "val_state_mae": 0.45288294553756714,
+      "val_acc": 0.95235,
+      "val_f1": 0.42624924744130044,
+      "val_auc": 0.9357732457571863
+    }
+  ]
+}

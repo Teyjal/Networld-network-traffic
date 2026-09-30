@@ -23,21 +23,52 @@ import type {
 } from "@/types";
 
 /**
- * Dynamically resolves the API Base URL.
- * Automatically aligns with window.location.hostname to avoid CORS and Private Network Access mismatches
- * between localhost and 127.0.0.1.
+ * Resolves the API Base URL.
+ * In Vercel Services deployment or production environments, returns an empty string ("")
+ * so that all API calls route to relative paths (/api/...) on the same domain and standard port.
+ * In local development (localhost / 127.0.0.1), preserves local FastAPI backend connection.
  */
 export function getApiBaseUrl(): string {
   const envUrl = import.meta.env["VITE_API_BASE_URL"] as string | undefined;
+
   if (typeof window !== "undefined" && window.location) {
-    const curHost = window.location.hostname;
-    // Align with active browser host to prevent Private Network Access and CORS rejection
-    if (!envUrl || envUrl.includes("127.0.0.1") || envUrl.includes("localhost")) {
-      return `${window.location.protocol}//${curHost}:8000`;
+    const hostname = window.location.hostname;
+    const isLocalhost =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0";
+
+    // When deployed on Vercel or any non-localhost domain:
+    // Always use relative routing ("") so requests resolve to /api/... on the same origin without port :8000
+    if (!isLocalhost) {
+      if (
+        envUrl &&
+        !envUrl.includes("localhost") &&
+        !envUrl.includes("127.0.0.1") &&
+        !envUrl.includes(":8000")
+      ) {
+        return envUrl.replace(/\/$/, "");
+      }
+      return "";
     }
+
+    // Local development support:
+    if (envUrl && envUrl.trim() !== "") {
+      return envUrl.replace(/\/$/, "");
+    }
+    return `${window.location.protocol}//${hostname}:8000`;
+  }
+
+  // Server-side / build-time fallback:
+  if (
+    envUrl &&
+    !envUrl.includes("localhost") &&
+    !envUrl.includes("127.0.0.1") &&
+    !envUrl.includes(":8000")
+  ) {
     return envUrl.replace(/\/$/, "");
   }
-  return (envUrl || "http://127.0.0.1:8000").replace(/\/$/, "");
+  return "";
 }
 
 // Keep API_BASE_URL for backward compatibility
@@ -47,13 +78,23 @@ export const API_BASE_URL = getApiBaseUrl();
  * Robust fetch wrapper that automatically routes to dynamic API base URL
  * and provides clear error reporting if the backend cannot be reached.
  */
-export async function apiFetch(endpointOrUrl: string, init?: RequestInit & { timeoutMs?: number }): Promise<Response> {
+export async function apiFetch(
+  endpointOrUrl: string,
+  init?: RequestInit & { timeoutMs?: number }
+): Promise<Response> {
   const baseUrl = getApiBaseUrl();
+  const normalizedEndpoint = endpointOrUrl.startsWith("/")
+    ? endpointOrUrl
+    : `/${endpointOrUrl}`;
   const url = endpointOrUrl.startsWith("http")
     ? endpointOrUrl
-    : `${baseUrl}${endpointOrUrl.startsWith("/") ? "" : "/"}${endpointOrUrl}`;
-  
-  const timeoutMs = (init as any)?.timeoutMs || (endpointOrUrl.includes("upload") ? 120000 : 30000);
+    : baseUrl
+    ? `${baseUrl}${normalizedEndpoint}`
+    : normalizedEndpoint;
+
+  const timeoutMs =
+    (init as any)?.timeoutMs ||
+    (endpointOrUrl.includes("upload") ? 120000 : 30000);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const signal = init?.signal || controller.signal;
@@ -69,12 +110,9 @@ export async function apiFetch(endpointOrUrl: string, init?: RequestInit & { tim
         `Backend request timed out after ${timeoutMs / 1000}s. The model may still be analyzing the sequence.`
       );
     }
-    if (
-      err?.message === "Failed to fetch" ||
-      err?.name === "TypeError"
-    ) {
+    if (err?.message === "Failed to fetch" || err?.name === "TypeError") {
       throw new Error(
-        `Unable to reach backend at ${baseUrl}. Ensure the FastAPI server is running on port 8000.`
+        `Unable to reach backend at ${baseUrl || "/api"}. Ensure the backend service is running.`
       );
     }
     throw err;

@@ -30,6 +30,8 @@ env/
 backend/test_*.py
 backend/uploads/*
 !backend/uploads/.gitkeep
+!backend/ml/**
+!backend/models/**
 
 # Exclude node & frontend build intermediate caches
 node_modules/

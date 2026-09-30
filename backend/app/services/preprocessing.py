@@ -203,9 +203,14 @@ class PreprocessingService:
         generates an aligned flow-level DataFrame with both 36 flow features and 15 packet features,
         and saves it for unified session forecasting.
         """
-        from ml.packet_extractor import PacketFeatureExtractor
-        from ml.packet_schema import PACKET_FEATURE_NAMES, NUM_PACKET_FEATURES
-        from ml.feature_schema import FEATURE_NAMES, NUM_UNIFIED_FEATURES
+        try:
+            from ml.packet_extractor import PacketFeatureExtractor
+            from ml.packet_schema import PACKET_FEATURE_NAMES, NUM_PACKET_FEATURES
+            from ml.feature_schema import FEATURE_NAMES, NUM_UNIFIED_FEATURES
+        except ImportError:
+            from packet_extractor import PacketFeatureExtractor
+            from packet_schema import PACKET_FEATURE_NAMES, NUM_PACKET_FEATURES
+            from feature_schema import FEATURE_NAMES, NUM_UNIFIED_FEATURES
 
         parsed_pkts = PacketFeatureExtractor.parse_pcap_file(file_path)
         if not parsed_pkts:

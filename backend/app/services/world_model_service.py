@@ -20,27 +20,45 @@ try:
 except ImportError:
     torch = None
 
-# Ensure backend dir and workspace root are in sys.path
+# Ensure backend dir and workspace root are in sys.path (prioritizing BACKEND_DIR)
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 WORKSPACE_ROOT = os.path.dirname(BACKEND_DIR)
-for p in [BACKEND_DIR, WORKSPACE_ROOT]:
-    if p not in sys.path:
+for p in [WORKSPACE_ROOT, BACKEND_DIR]:
+    if p and p not in sys.path:
         sys.path.insert(0, p)
-BASE_DIR = WORKSPACE_ROOT
+BASE_DIR = BACKEND_DIR if os.path.exists(os.path.join(BACKEND_DIR, "models")) else WORKSPACE_ROOT
 
-from ml.feature_schema import (
-    FEATURE_NAMES,
-    NUM_FEATURES,
-    SEQUENCE_LENGTH,
-    classify_risk_level,
-    DEFENSE_PERTURBATION_SPEC,
-    UNIFIED_FEATURE_NAMES,
-    NUM_UNIFIED_FEATURES,
-    PACKET_FEATURE_NAMES,
-    NUM_PACKET_FEATURES,
-)
-from ml.packet_extractor import PacketFeatureExtractor
-from ml.unified_scaler import get_unified_scaler, UnifiedNetworkScaler
+try:
+    from ml.feature_schema import (
+        FEATURE_NAMES,
+        NUM_FEATURES,
+        SEQUENCE_LENGTH,
+        classify_risk_level,
+        DEFENSE_PERTURBATION_SPEC,
+        UNIFIED_FEATURE_NAMES,
+        NUM_UNIFIED_FEATURES,
+        PACKET_FEATURE_NAMES,
+        NUM_PACKET_FEATURES,
+    )
+    from ml.packet_extractor import PacketFeatureExtractor
+    from ml.unified_scaler import get_unified_scaler, UnifiedNetworkScaler
+except ImportError:
+    backend_ml = os.path.join(BACKEND_DIR, "ml")
+    if backend_ml not in sys.path:
+        sys.path.insert(0, backend_ml)
+    from feature_schema import (
+        FEATURE_NAMES,
+        NUM_FEATURES,
+        SEQUENCE_LENGTH,
+        classify_risk_level,
+        DEFENSE_PERTURBATION_SPEC,
+        UNIFIED_FEATURE_NAMES,
+        NUM_UNIFIED_FEATURES,
+        PACKET_FEATURE_NAMES,
+        NUM_PACKET_FEATURES,
+    )
+    from packet_extractor import PacketFeatureExtractor
+    from unified_scaler import get_unified_scaler, UnifiedNetworkScaler
 
 if torch is not None:
     try:

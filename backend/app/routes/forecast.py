@@ -58,14 +58,24 @@ async def get_feature_schema():
     - 36 Flow Features (CIC-IDS2018 standard)
     - 15 Packet Features (TTL, TCP window, payload statistics, retransmissions, port scans)
     """
-    from ml.feature_schema import FEATURE_NAMES, NUM_FEATURES
-    from ml.packet_schema import (
-        PACKET_FEATURE_NAMES,
-        NUM_PACKET_FEATURES,
-        UNIFIED_FEATURE_NAMES,
-        NUM_UNIFIED_FEATURES,
-        PACKET_FEATURE_SPEC,
-    )
+    try:
+        from ml.feature_schema import FEATURE_NAMES, NUM_FEATURES
+        from ml.packet_schema import (
+            PACKET_FEATURE_NAMES,
+            NUM_PACKET_FEATURES,
+            UNIFIED_FEATURE_NAMES,
+            NUM_UNIFIED_FEATURES,
+            PACKET_FEATURE_SPEC,
+        )
+    except ImportError:
+        from feature_schema import FEATURE_NAMES, NUM_FEATURES
+        from packet_schema import (
+            PACKET_FEATURE_NAMES,
+            NUM_PACKET_FEATURES,
+            UNIFIED_FEATURE_NAMES,
+            NUM_UNIFIED_FEATURES,
+            PACKET_FEATURE_SPEC,
+        )
     wm = get_world_model_service()
     return {
         "flow_features": {

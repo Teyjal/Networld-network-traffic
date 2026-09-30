@@ -3,6 +3,17 @@ NetWorld Cyberattack Forecasting AI - FastAPI Main Application Entrypoint
 SIH 2026 Project Backend Foundation
 """
 
+import os
+import sys
+
+# Ensure backend root directory is in sys.path so sibling packages like `ml` resolve
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_backend_root = os.path.dirname(_current_dir)
+if _backend_root not in sys.path:
+    sys.path.insert(0, _backend_root)
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
+
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 

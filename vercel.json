@@ -10,6 +10,14 @@
       "framework": "fastapi"
     }
   },
+  "functions": {
+    "backend/**/*.py": {
+      "includeFiles": "backend/ml/**"
+    },
+    "app/main.py": {
+      "includeFiles": "ml/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

@@ -1,6 +1,4 @@
-Absolutely — here’s a **GitHub-ready README** for NetWorld. I’ve kept the claims aligned with what you’ve actually built/planned, rather than overstating the current prototype as a finished production world model.
 
-````markdown
 # 🌐 NetWorld
 ## Predictive Digital Twin for Proactive Network Attack Forecasting
 
